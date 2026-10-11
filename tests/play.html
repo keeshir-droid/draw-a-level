@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Draw a Level: play test</title>
+<!--
+  The game alone (game-builder). Never deployed as a page people see.
+    ?sample=1            the sample level (DL.sample.load(); the stand-in level until sample.js exists)
+    ?level=standin       force the stand-in level (tests/engine/physics-level.js)
+    #L1.<payload>        play a level link (needs codec.js)
+    &control=touch|tilt  force a control (otherwise: a Tap to play button asks for tilt, falls back to touch)
+    &autoplay=1          a scripted tilt that solves the level (deterministic)
+    &speed=4             run the clock faster (screenshots under a virtual-time budget)
+    &pause=6.5           freeze when the run time reaches 6.5 s
+    &near=hole           freeze when the ball first rolls close to a hole
+    &tune=1              show the physics sliders (for feeling the tilt on a phone)
+    &hud=0               hide the FPS / physics line
+    &ff=1                step the run by hand (headless screenshots: no animation frames needed)
+    &vw=390             pin the page width (headless Edge on Windows won't go below ~500 px)
+    &story=maker|friend  after the finish, show the 1080×1920 story image full size (&name=Rishi)
+  window.__play = { game, level, events, result } for checks.
+-->
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: #f6f2ea; color: #1c2433; font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         touch-action: none; overscroll-behavior: none; overflow: hidden; -webkit-user-select: none; user-select: none;
+         display: flex; flex-direction: column; height: 100svh; }
+  header { height: 52px; flex: none; display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; padding-top: env(safe-area-inset-top); }
+  header button { width: 44px; height: 44px; border: 0; background: none; color: #1f3a5f; padding: 0; justify-self: center; cursor: pointer; }
+  #timer { text-align: center; font-weight: 600; font-size: 1.3rem; font-variant-numeric: tabular-nums lining-nums; }
+  #stage { position: relative; flex: 1; min-height: 0; margin: 0 8px; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #hud { flex: none; height: 30px; text-align: center; font-size: 12px; color: #6c6a64; font-variant-numeric: tabular-nums; padding-bottom: env(safe-area-inset-bottom); }
+  #gulp { position: absolute; font: 600 1.9rem Caveat, "Bradley Hand", "Segoe Print", cursive; color: #1f3a5f; pointer-events: none; opacity: 0; transition: opacity .12s; transform: translate(-50%, -140%) rotate(-4deg); }
+  #tap { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(246,242,234,.72); border: 0; width: 100%; cursor: pointer; font: inherit; color: inherit; }
+  #tap div { background: #fffdf8; border-radius: 20px; padding: 24px; max-width: 300px; box-shadow: 0 10px 30px rgba(60,40,20,.18); text-align: left; }
+  #tap h1 { font: 600 1.8rem "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; margin: 0 0 6px; }
+  #tap p { margin: 0; color: #3a4252; }
+  #tune { position: absolute; left: 8px; right: 8px; bottom: 34px; background: rgba(255,253,248,.94); border-radius: 12px; padding: 8px 12px; font-size: 12px; display: none; }
+  #tune label { display: grid; grid-template-columns: 92px 1fr 52px; align-items: center; gap: 8px; height: 30px; }
+  #tune input { width: 100%; }
+  #result { position: absolute; left: 0; right: 0; top: 8px; text-align: center; font: 600 2.4rem "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-variant-numeric: tabular-nums lining-nums; pointer-events: none; opacity: 0; transition: opacity .42s; }
+</style>
+<script src="../src/engine/util.js"></script>
+<script src="../src/engine/palette.js"></script>
+<script src="../src/engine/level.js"></script>
+<script src="../src/engine/codec.js"></script>
+<script src="../src/engine/sample.js"></script>
+<script src="../src/engine/physics.js"></script>
+<script src="../src/engine/input.js"></script>
+<script src="../src/engine/board.js"></script>
+<script src="../src/engine/game.js"></script>
+<script src="../src/engine/story.js"></script>
+<script src="engine/physics-level.js"></script>
+</head>
+<body>
+<header>
+  <button id="restart" aria-label="Restart"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.4a7.5 7.4 0 1 0 2.3-5.5"/><path d="M5.2 3.6l.9 3.7 3.6-.8"/></svg></button>
+  <div id="timer">0:00.0</div>
+  <span></span>
+</header>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="gulp">Gulp.</div>
+  <div id="result"></div>
+  <div id="tune"></div>
+</div>
+<div id="hud"></div>
+<script>
+(async function () {
+  "use strict";
+  const q = new URLSearchParams(location.search);
+  const $ = (id) => document.getElementById(id);
+  const fmt = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(1); };
+  const events = [];
+  window.__play = { events };
+  // headless Edge on Windows will not make a window narrower than ~500 px: &vw=390 pins the page width
+  if (q.get("vw")) { document.body.style.width = q.get("vw") + "px"; document.body.style.overflow = "hidden"; }
+
+  // ---- the level
+  let level = null, source = "";
+  try {
+    if (location.hash.startsWith("#L1.") && DL.codec) { level = await DL.codec.decode(location.hash.slice(1)); source = "link"; }
+  } catch (e) { source = "bad link: " + e.code; }
+  if (!level && q.get("level") !== "standin" && DL.sample && DL.sample.load) { level = DL.sample.load(); source = "sample"; }
+  if (!level) { level = JSON.parse(JSON.stringify(window.DL_TEST_LEVEL)); source = "stand-in"; }
+  if ((!level.start || !level.goal) && DL.level && DL.level.autoPlace) DL.level.autoPlace(level);
+  window.__play.level = level;
+
+  // ---- speed for screenshots: the clock runs N times faster (physics stays fixed-step)
+  const speed = Math.max(0.1, +q.get("speed") || 1);
+  if (speed !== 1) {
+    const raw = performance.now.bind(performance), t0 = raw();
+    performance.now = () => t0 + (raw() - t0) * speed;
+  }
+  const pauseAt = q.has("pause") ? +q.get("pause") : null;
+  const nearHole = q.get("near") === "hole";
+  const autoplay = q.get("autoplay") === "1";
+  let game = null;
+
+  function onEvent(e) {
+    events.push(e);
+    if (e.type === "tick") $("timer").textContent = fmt(e.time);
+    if (e.type === "hole") {
+      const g = $("gulp"); g.style.left = e.x + "px"; g.style.top = e.y + "px"; g.style.opacity = 1;
+      if (q.get("ff") !== "1") setTimeout(() => (g.style.opacity = 0), 670);
+    }
+    if (e.type === "finish") {
+      $("timer").textContent = fmt(e.time);
+      const r = $("result"); r.textContent = fmt(e.time); setTimeout(() => (r.style.opacity = 1), 900);
+      window.__play.result = game.result();
+      if (q.get("story")) showStory(window.__play.result);
+    }
+  }
+
+  async function showStory(res) {
+    const blob = await DL.story.image(level, { time: res.time, path: res.path, name: q.get("name") || "", mode: q.get("story") === "friend" ? "friend" : "maker" });
+    window.__play.storyBytes = blob.size;
+    const img = new Image(); img.src = URL.createObjectURL(blob);
+    img.style.cssText = "position:fixed;left:0;top:0;width:1080px;height:1920px;z-index:9";
+    document.body.style.overflow = "visible"; document.body.appendChild(img);
+  }
+
+  // headless screenshots: browsers barely run animation frames under a virtual-time budget, so step the
+  // run by hand (same fixed-step physics, same result) until the pause / hole / finish, then draw
+  function fastForward() {
+    game.prime();
+    const t0 = performance.now();
+    let frames = 0, why = "120 s limit";
+    for (; frames < 120 * 60; frames++) {
+      game.advance(1 / 60);
+      const st = game.state(), w = game.world;
+      if (pauseAt != null && st.phase === "play" && st.time >= pauseAt) { why = "paused"; break; }
+      if (nearHole && st.phase === "play" && (level.holes || []).some((H) => Math.hypot(H.x - w.x, H.y - w.y) < H.r + level.ballR * 1.6)) { why = "near a hole"; break; }
+      if (st.phase === "done") { why = "finished"; break; }
+      if (q.get("into") === "hole" && st.phase === "falling" && w.phaseT > 0.16) { why = "falling into a hole"; break; }
+    }
+    const st = game.state();
+    if (q.get("bench") === "1") { // real draw cost: force the canvas to rasterise every frame
+      const c = $("c").getContext("2d"), N = 120, b0 = performance.now();
+      for (let i = 0; i < N; i++) { game.advance(1 / 60); c.getImageData(0, 0, 1, 1); }
+      window.__play.benchMs = (performance.now() - b0) / N;
+      $("hud").textContent = "bench: " + window.__play.benchMs.toFixed(2) + " ms per frame (physics + draw + readback) · ";
+      $("hud").textContent += "physics " + game.stats.physMs.toFixed(3) + " ms";
+      return;
+    }
+    $("hud").textContent = "fast-forward: " + frames + " frames in " + (performance.now() - t0).toFixed(0) + " ms (" + ((performance.now() - t0) / Math.max(1, frames)).toFixed(3) + " ms/frame incl. draw) · physics " + game.stats.physMs.toFixed(3) + " ms · " + why + " at " + st.time.toFixed(2) + " s · " + source;
+  }
+
+  function watch() {
+    if (!game) return;
+    const st = game.state(), w = game.world;
+    let freeze = pauseAt != null && st.phase === "play" && st.time >= pauseAt;
+    if (nearHole && st.phase === "play") {
+      for (const H of level.holes || []) if (Math.hypot(H.x - w.x, H.y - w.y) < H.r + level.ballR * 1.6) freeze = true;
+    }
+    if (freeze) { game.stop(); $("hud").textContent += " · frozen at " + st.time.toFixed(2) + " s"; return; }
+    requestAnimationFrame(watch);
+  }
+
+  async function begin(mode) {
+    $("tap") && $("tap").remove();
+    let pilot = null;
+    if (q.get("into") === "hole" && level.holes && level.holes.length) {
+      const H = level.holes[0]; // steer straight into the first hole (to see the fall)
+      pilot = DL.physics.autopilot({ level: Object.assign({}, level, { goal: { x: H.x, y: H.y } }), r: level.ballR });
+    }
+    game = DL.game.create($("c"), level, { mode, onEvent, autoplay, pilot });
+    window.__play.game = game;
+    if (q.get("ff") === "1") { fastForward(); return; }
+    game.start();
+    if (pauseAt != null || nearHole) requestAnimationFrame(watch);
+    hudLoop(mode);
+  }
+
+  function hudLoop(mode) {
+    if (q.get("hud") === "0") { $("hud").style.display = "none"; return; }
+    const tick = () => {
+      if (!game) return;
+      const s = game.stats, st = game.state();
+      if (st.running) $("hud").textContent = Math.round(s.fps) + " fps · physics " + s.physMs.toFixed(2) + " ms · draw " + s.drawMs.toFixed(2) + " ms · " + (autoplay ? "autoplay" : mode) + " · " + source + " · " + st.phase + " " + st.time.toFixed(2);
+      setTimeout(tick, 250);
+    };
+    tick();
+  }
+
+  $("restart").onclick = () => { if (game) { $("result").style.opacity = 0; $("timer").textContent = "0:00.0"; game.restart(); if (pauseAt != null || nearHole) requestAnimationFrame(watch); } };
+
+  // ---- the tuning panel (live: physics reads DL.PHYSICS every step)
+  if (q.get("tune") === "1") {
+    const T = $("tune"); T.style.display = "block";
+    const rows = [["gravity", 800, 4000, 50], ["friction", 0, 3, 0.05], ["maxSpeed", 400, 2500, 25], ["smoothing", 0, 0.25, 0.005], ["maxTiltDeg", 10, 40, 1], ["restitution", 0, 0.7, 0.01]];
+    for (const [k, a, b, st] of rows) {
+      const lab = document.createElement("label");
+      lab.innerHTML = "<span>" + k + "</span><input type=range min=" + a + " max=" + b + " step=" + st + " value=" + DL.PHYSICS[k] + "><b>" + DL.PHYSICS[k] + "</b>";
+      const inp = lab.querySelector("input"), out = lab.querySelector("b");
+      inp.oninput = () => { DL.PHYSICS[k] = +inp.value; out.textContent = inp.value; };
+      inp.addEventListener("pointerdown", (e) => e.stopPropagation());
+      T.appendChild(lab);
+    }
+  }
+
+  // ---- control
+  const control = q.get("control");
+  if (autoplay || control === "touch" || control === "tilt") begin(control === "tilt" ? "tilt" : "touch");
+  else {
+    const b = document.createElement("button"); b.id = "tap";
+    b.innerHTML = "<div><h1>Tap to play.</h1><p>Then tilt your phone to roll the ball.</p></div>";
+    b.onclick = async () => { DL.game.unlockAudio(); const mode = await DL.input.request(); begin(mode); };
+    $("stage").appendChild(b);
+    // draw the board behind the overlay
+    const c = $("c"), r = c.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    c.width = r.width * dpr; c.height = r.height * dpr;
+    const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const lay = DL.board.layout(level, r.width, r.height, 6);
+    DL.board.draw(x, level, { scale: lay.scale, x: lay.x, y: lay.y, ball: level.start ? { x: level.start.x, y: level.start.y } : null });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draw a Level: level engine check (M1)</title>
+<style>
+  body { margin: 0; padding: 16px; font: 13px/1.4 system-ui, sans-serif; background: #f3efe6; color: #222; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .note { color: #6b5f4b; margin: 0 0 12px; }
+  .row { display: grid; grid-template-columns: 250px 250px 250px 1fr; gap: 10px; align-items: start; background: #fffdf8; border-radius: 10px; padding: 10px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .row h2 { grid-column: 1 / -1; font-size: 14px; margin: 0; }
+  .cell { display: flex; flex-direction: column; gap: 4px; }
+  .cell span { font-size: 11px; color: #7a6f5c; text-transform: uppercase; letter-spacing: .04em; }
+  canvas { width: 250px; height: auto; background: #fff; border: 1px solid #ddd2bf; border-radius: 4px; }
+  canvas.paper { background: #faf6ec; }
+  .stats { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+  .ok { color: #1d7a3a; font-weight: 600; } .bad { color: #b3261e; font-weight: 600; }
+  .err { color: #b3261e; font-weight: 600; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>Level engine check: photo → clean ink → vector level → link</h1>
+<p class="note" id="note">Loading…</p>
+<p class="note" id="stage"></p>
+<div id="rows"></div>
+
+<script src="../src/engine/util.js"></script>
+<script src="../src/engine/decode.js"></script>
+<script src="../src/engine/lift.js"></script>
+<script src="../src/engine/vectorize.js"></script>
+<script src="../src/engine/level.js"></script>
+<script src="../src/engine/codec.js"></script>
+<script src="../src/engine/sample.js"></script>
+<script>
+// Query:
+//   ?set=real                  every photo in tests/real/ (needs the local server's folder listing)   [default]
+//   ?set=synthetic             DL.sample.CASES, each passed through a JPEG like a phone photo
+//   &cases=neat,holes          only these synthetic cases     ?photo=real/01-neat.jpg  one photo
+//   &raw=1                     synthetic: skip the JPEG round trip (for headless screenshots)
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const note = document.getElementById("note"), rowsEl = document.getElementById("rows");
+  const results = window.__levels = [];
+
+  // Keeps the event loop ticking while a promise is pending. Headless Edge with --virtual-time-budget otherwise
+  // fast-forwards to the end of the budget while the page waits on off-thread work (image decoding, compression),
+  // and the screenshot shows a half-done page. Harmless in a normal browser.
+  function settle(p) {
+    let done = false;
+    p.then(function () { done = true; }, function () { done = true; });
+    const ch = new MessageChannel();
+    return new Promise(function (res) {
+      ch.port1.onmessage = function () { if (done) { ch.port1.close(); res(p); } else ch.port2.postMessage(0); };
+      ch.port2.postMessage(0);
+    });
+  }
+  function stage(t) { document.getElementById("stage").textContent = t; }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function cellWith(label, node) { const c = el("div", "cell"); c.appendChild(el("span", null, label)); c.appendChild(node); return c; }
+
+  async function jpegFile(img, name) { // a synthetic ImageData -> a JPEG File, like the phone's camera
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    c.getContext("2d").putImageData(img, 0, 0);
+    const blob = await new Promise(function (r) { c.toBlob(r, "image/jpeg", 0.85); });
+    return new File([blob], name + ".jpg", { type: "image/jpeg" });
+  }
+
+  function drawOriginal(img) {
+    const c = document.createElement("canvas"), k = 500 / Math.max(img.width, img.height);
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const t = document.createElement("canvas"); t.width = img.width; t.height = img.height;
+    t.getContext("2d").putImageData(img, 0, 0);
+    const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(t, 0, 0, c.width, c.height);
+    return c;
+  }
+  function drawPreview(preview) {
+    const c = document.createElement("canvas"); c.width = preview.width; c.height = preview.height; c.className = "paper";
+    c.getContext("2d").putImageData(preview, 0, 0);
+    return c;
+  }
+  // the vector level drawn plainly: free cells the ball can reach from the start (pale green), walls, fills, holes,
+  // the ball at the start (true size), the goal ring, and where it gets stuck if there's no path
+  function drawLevel(L, pc) {
+    const k = 0.5, c = document.createElement("canvas");
+    c.width = L.w * k; c.height = L.h * k; c.className = "paper";
+    const x = c.getContext("2d"); x.scale(k, k);
+    const g = DL.level.freeGrid(L);
+    // reachable area
+    if (L.start) {
+      const s = Math.floor(L.start.y / g.cell) * g.nx + Math.floor(L.start.x / g.cell);
+      const seen = new Uint8Array(g.nx * g.ny), st = [s]; seen[s] = 1;
+      x.fillStyle = "rgba(60,170,90,0.16)";
+      while (st.length) {
+        const p = st.pop(), j = (p / g.nx) | 0, i = p - j * g.nx;
+        x.fillRect(i * g.cell, j * g.cell, g.cell, g.cell);
+        [[i - 1, j], [i + 1, j], [i, j - 1], [i, j + 1]].forEach(function (n) {
+          if (n[0] < 0 || n[1] < 0 || n[0] >= g.nx || n[1] >= g.ny) return;
+          const q2 = n[1] * g.nx + n[0];
+          if (!seen[q2] && g.free[q2]) { seen[q2] = 1; st.push(q2); }
+        });
+      }
+    }
+    x.strokeStyle = "#c9bda6"; x.lineWidth = 2; x.strokeRect(1, 1, L.w - 2, L.h - 2);
+    x.lineCap = "round"; x.lineJoin = "round";
+    x.strokeStyle = L.ink; x.fillStyle = L.ink;
+    L.walls.forEach(function (wl, i) {
+      x.lineWidth = wl.width;
+      x.strokeStyle = L.ink;
+      x.beginPath(); x.moveTo(wl.pts[0], wl.pts[1]);
+      for (let k2 = 2; k2 < wl.pts.length; k2 += 2) x.lineTo(wl.pts[k2], wl.pts[k2 + 1]);
+      x.stroke();
+    });
+    L.fills.forEach(function (f) {
+      x.fillStyle = L.ink; x.globalAlpha = 0.85;
+      x.beginPath(); x.moveTo(f.pts[0], f.pts[1]);
+      for (let k2 = 2; k2 < f.pts.length; k2 += 2) x.lineTo(f.pts[k2], f.pts[k2 + 1]);
+      x.closePath(); x.fill(); x.globalAlpha = 1;
+    });
+    L.holes.forEach(function (o) {
+      x.fillStyle = "#111"; x.beginPath(); x.arc(o.x, o.y, o.r, 0, 6.2832); x.fill();
+      x.strokeStyle = "#e0a000"; x.lineWidth = 3; x.stroke();
+    });
+    if (L.goal) { x.strokeStyle = "#1d7a3a"; x.lineWidth = 6; x.beginPath(); x.arc(L.goal.x, L.goal.y, L.ballR * 1.3, 0, 6.2832); x.stroke(); }
+    if (L.start) { x.fillStyle = "#8a8f99"; x.beginPath(); x.arc(L.start.x, L.start.y, L.ballR, 0, 6.2832); x.fill(); x.fillStyle = "#fff"; x.beginPath(); x.arc(L.start.x - L.ballR * 0.35, L.start.y - L.ballR * 0.35, L.ballR * 0.25, 0, 6.2832); x.fill(); }
+    if (pc && pc.blocked) { x.strokeStyle = "#b3261e"; x.lineWidth = 5; x.beginPath(); x.arc(pc.blocked.x, pc.blocked.y, 30, 0, 6.2832); x.stroke(); }
+    return c;
+  }
+
+  async function runOne(name, getImage) {
+    const row = el("div", "row");
+    row.appendChild(el("h2", null, name));
+    rowsEl.appendChild(row);
+    const r = { name: name };
+    results.push(r);
+    try {
+      const t0 = performance.now();
+      stage(name + ": photo");
+      const img = await settle(getImage());
+      stage(name + ": lifting");
+      const tDecode = Math.round(performance.now() - t0);
+      row.appendChild(cellWith("original " + img.width + "×" + img.height, drawOriginal(img)));
+      let out;
+      try { out = await settle(DL.lift.fromImage(img)); }
+      catch (e) {
+        r.error = e.code || String(e);
+        row.appendChild(el("div", "err", "lift → " + (e.code || "") + ": " + (e.title || e.message) + " " + (e.detail || "")));
+        if (!e.code) console.error(e);
+        return;
+      }
+      const L = out.level, I = out.info;
+      row.appendChild(cellWith("clean ink", drawPreview(out.preview)));
+      stage(name + ": placing");
+      DL.level.autoPlace(L);
+      const tP = performance.now();
+      const pc = DL.level.pathCheck(L);
+      const tPath = Math.round(performance.now() - tP);
+      const tE = performance.now();
+      stage(name + ": link");
+      const link = await settle(DL.codec.url(L));
+      const back = await settle(DL.codec.decode(link));
+      const tLink = Math.round(performance.now() - tE);
+      const same = JSON.stringify(back) === JSON.stringify(DL.codec.normalize(L));
+      stage(name + ": drawing");
+      row.appendChild(cellWith("vector level (ball at start, true size)", drawLevel(L, pc)));
+      const pts = L.walls.reduce(function (a, w) { return a + w.pts.length / 2; }, 0);
+      const stats = el("div", "stats");
+      const lines = [
+        "level      " + L.w + " × " + L.h + (I.map.rotated ? "  (turned to portrait)" : ""),
+        "ink        " + L.ink,
+        "ball r     " + L.ballR + "   (corridor " + I.stats.corridor.toFixed(0) + ")",
+        "holes      " + L.holes.length + (L.holes.length ? "  r " + L.holes.map(function (h) { return h.r; }).join(", ") : ""),
+        "walls      " + L.walls.length + " strokes, " + pts + " points; widths " + (L.walls.length ? Math.min.apply(null, L.walls.map(function (w) { return w.width; })) + "–" + Math.max.apply(null, L.walls.map(function (w) { return w.width; })) : "-"),
+        "fills      " + L.fills.length,
+        "ink cover  " + (I.inkFrac * 100).toFixed(1) + "% of the page, " + I.pieces + " pieces",
+        "notebook   " + I.linesRemoved + " line pieces wiped" + (I.faint ? "; faint (pencil) mode" : ""),
+        "link       " + link.length + " characters (payload " + (link.length - DL.SITE.length - 1) + ")" + (I.tol ? "  simplified harder: tol " + I.tol : ""),
+        "round trip " + (same ? "identical" : "DIFFERENT"),
+        "",
+        "time       decode " + tDecode + " ms · lift " + I.timings.total + " ms · path " + tPath + " ms · link+decode " + tLink + " ms",
+        "           " + Object.keys(I.timings).filter(function (k) { return k !== "total"; }).map(function (k) { return k + " " + I.timings[k]; }).join(" · ")
+      ];
+      stats.textContent = lines.join("\n");
+      const pl = el("div", pc.ok ? "ok" : "bad", pc.ok ? "Path check: the ball gets from start to goal ✓" : "Path check: NO PATH (stuck at the red ring)");
+      const cell = el("div", "cell"); cell.appendChild(el("span", null, "numbers")); cell.appendChild(pl); cell.appendChild(stats);
+      row.appendChild(cell);
+      Object.assign(r, { ok: pc.ok, link: link.length, ballR: L.ballR, holes: L.holes.length, walls: L.walls.length, points: pts, lift: I.timings.total, same: same, level: L });
+    } catch (e) {
+      r.error = String(e && e.stack || e);
+      row.appendChild(el("div", "err", "crashed: " + (e && e.message)));
+      console.error(e);
+    }
+  }
+
+  const set = q.get("set") || (q.get("photo") ? "photo" : "real");
+  try {
+    if (set === "synthetic") {
+      const want = q.get("cases") ? q.get("cases").split(",") : Object.keys(DL.sample.CASES);
+      note.textContent = "Synthetic maze photos (DL.sample.CASES), each saved as a JPEG first. These only catch regressions: the real photos in tests/real/ are the test.";
+      for (const name of want) {
+        await runOne("synthetic: " + name, async function () {
+          const img = DL.sample.photo(DL.sample.CASES[name]);
+          if (q.get("raw") === "1") return img; // (headless screenshots: the async JPEG round trip can stall virtual time)
+          const file = await jpegFile(img, name);
+          return DL.decode.fileToImageData(file);
+        });
+      }
+    } else {
+      let files = [];
+      if (q.get("photo")) files = [q.get("photo")];
+      else {
+        try {
+          const html = await (await fetch("real/")).text();
+          const seen = new Set();
+          html.replace(/href="([^"]+)"/g, function (m, href) {
+            const f = decodeURIComponent(href.split("/").pop());
+            if (/\.(jpe?g|png|webp|heic|heif)$/i.test(f) && !seen.has(f)) { seen.add(f); files.push("real/" + f); }
+          });
+          files.sort();
+        } catch (e) { /* no listing */ }
+      }
+      if (!files.length) { note.textContent = "No photos found in tests/real/ (the server must list the folder). Try ?set=synthetic."; return; }
+      note.textContent = files.length + " photo(s) from tests/real/.";
+      for (const f of files) {
+        await runOne(f, async function () {
+          const blob = await (await fetch(f)).blob();
+          return DL.decode.fileToImageData(new File([blob], f.split("/").pop(), { type: blob.type }));
+        });
+      }
+    }
+  } finally {
+    stage("done" + (performance.now() < 50 ? " (headless virtual time: the ms timings read 0 here; real timings come from a normal browser or node tests/engine/lift-synthetic.js)" : ""));
+    document.title += " (done)";
+    window.__levelsDone = true;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Draw a Level: OG image source (1200 × 630, never deployed)</title>
+<link rel="stylesheet" href="../src/design-tokens.css">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--dl-page); }
+  body { position: relative; font-family: var(--dl-sans); color: var(--dl-text); -webkit-font-smoothing: antialiased; }
+  #tooth { position: absolute; inset: 0; }
+  #board { position: absolute; left: 150px; top: 38px; transform: rotate(-3deg); }
+  .copy { position: absolute; left: 610px; top: 150px; width: 520px; }
+  h1 { margin: 0; font: 600 92px/1 var(--dl-serif); letter-spacing: -.015em; }
+  p { margin: 22px 0 0; font: 400 29px/1.35 var(--dl-sans); color: var(--dl-text-2); max-width: 470px; }
+  .addr { margin-top: 34px; font: 600 40px/1 var(--dl-hand); color: var(--dl-accent); transform: rotate(-2deg); transform-origin: left; display: inline-block; }
+</style>
+</head>
+<body>
+<canvas id="tooth" width="1200" height="630"></canvas>
+<canvas id="board"></canvas>
+<div class="copy">
+  <h1>Draw a level.</h1>
+  <p>Draw a maze on paper. Tilt your phone to play. Dare a friend.</p>
+  <span class="addr">draw-a-level.vercel.app</span>
+</div>
+<script src="../src/engine/palette.js"></script>
+<script src="board-render.js"></script>
+<script>
+(function () {
+  var level = DLR.makeLevel({ seed: 23, cols: 6, rows: 9, ink: "#26357a", braid: 2 });
+  var s = DLR.fitScale(level, 420, 540), sz = DLR.size(level, s), pad = 30;
+  var c = document.getElementById("board");
+  c.width = Math.ceil(sz.w) + pad * 2; c.height = Math.ceil(sz.h) + pad * 2;
+  c.style.left = (150 - pad) + "px"; c.style.top = (40 - pad) + "px";
+  var ctx = c.getContext("2d");
+  var p = level._path, i = Math.floor(p.length / 2 * 0.42) * 2;
+  DLR.drawBoard(ctx, level, { x: pad, y: pad, s: s, start: "play", ball: { x: p[i], y: p[i + 1] } });
+  var t = document.getElementById("tooth").getContext("2d");
+  t.fillStyle = DL.PALETTE.story.bg; t.fillRect(0, 0, 1200, 630);
+})();
+</script>
+</body>
+</html>

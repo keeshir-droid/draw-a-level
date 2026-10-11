@@ -1,0 +1,17 @@
+# Test material and output: never commit
+tests/real/*
+!tests/real/README.md
+tests/out/
+tests/engine/out/
+shots/
+*.pen
+
+# Tooling and OS junk
+node_modules/
+__pycache__/
+.DS_Store
+Thumbs.db
+.vercel
+.env
+.env.*
+*.log

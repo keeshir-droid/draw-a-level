@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f2ea">
+  <meta name="color-scheme" content="light">
+  <title>Draw a Level</title>
+  <meta name="description" content="Draw a maze on paper. Snap it. Tilt to play, then dare a friend.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Draw a Level">
+  <meta property="og:description" content="Draw a maze on paper. Snap it. Tilt to play, then dare a friend.">
+  <meta property="og:image" content="https://draw-a-level.vercel.app/og-image.png">
+  <meta property="og:url" content="https://draw-a-level.vercel.app/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://draw-a-level.vercel.app/og-image.png">
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="fonts/caveat-600.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="src/design-tokens.css">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+
+<!-- The drawn icon set (DESIGN.md section 5), 24 grid, 1.75 stroke, round caps. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 8.3c0-1 .8-1.8 1.7-1.8h2.3l1.3-1.9c.2-.3.5-.4.8-.4h4.5c.3 0 .6.1.8.4l1.3 1.9h2.4c.9 0 1.7.8 1.7 1.8v9.5c0 .9-.8 1.7-1.7 1.7H5.3c-.9 0-1.7-.8-1.7-1.7z"/><path d="M12.1 9.5c2 0 3.5 1.5 3.4 3.5 0 1.9-1.6 3.4-3.5 3.4s-3.4-1.6-3.4-3.5c.1-1.9 1.6-3.4 3.5-3.4z"/></g></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.6c0-.9.7-1.6 1.6-1.6h12.9c.8 0 1.5.7 1.5 1.6v12.8c0 .9-.7 1.6-1.6 1.6H5.6c-.9 0-1.6-.7-1.6-1.6z"/><path d="M4.4 16.6c1.5-1.6 3-3.3 4.6-4.8 1.2 1.1 2.4 2.3 3.6 3.4l2.4-2.2c1.6 1.4 3.2 2.9 4.7 4.4"/><path d="M15.4 7.4c.8 0 1.4.6 1.4 1.4s-.7 1.4-1.4 1.4-1.4-.6-1.4-1.4.6-1.4 1.4-1.4z"/></g></symbol>
+    <symbol id="i-restart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 12.6c.2 3.7 3.2 6.6 6.9 6.5 3.8-.1 6.8-3.2 6.7-7-.1-3.7-3.2-6.7-6.9-6.6-2 0-3.7.9-5 2.3"/><path d="M7.4 3.9 7 7.8l3.8.4"/></g></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 5.7c0-.8.9-1.3 1.6-.8l8.3 5.4c.7.4.7 1.4 0 1.8l-8.4 5.3c-.7.4-1.6 0-1.6-.9z"/></g></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 9.6H7.1c-.9 0-1.6.7-1.6 1.6v7.2c0 .9.7 1.6 1.6 1.6h9.9c.9 0 1.6-.7 1.6-1.6v-7.2c0-.9-.7-1.6-1.6-1.6h-1.6"/><path d="M12.1 3.9c-.1 3.5 0 6.9-.1 10.4"/><path d="M8.9 6.9c1-1.1 2.1-2.1 3.2-3.2 1 1.1 2.1 2.2 3.1 3.2"/></g></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c.1 3.4 0 6.8 0 10.3"/><path d="M8.5 10.9c1.2 1.2 2.3 2.4 3.5 3.5l3.6-3.5"/><path d="M4.8 15.4v2.7c0 .9.7 1.6 1.6 1.6h11.2c.9 0 1.6-.7 1.6-1.6v-2.7"/></g></symbol>
+    <symbol id="i-retake" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18.9 12.6c-.3 3.6-3.4 6.4-7 6.4-2.1 0-4-1-5.3-2.5"/><path d="M5.1 11.4c.3-3.6 3.3-6.4 7-6.4 2.1 0 4 .9 5.3 2.4"/><path d="M17.7 3.9c0 1.2-.1 2.3-.2 3.5l-3.5-.1"/><path d="M6.3 20.1l.2-3.5 3.5.1"/><path d="M12 10.5c.9 0 1.5.6 1.5 1.5s-.7 1.5-1.5 1.5-1.5-.7-1.5-1.5.6-1.5 1.5-1.5z"/></g></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 5.3c-2.2 2.3-4.4 4.5-6.7 6.7 2.2 2.3 4.5 4.4 6.7 6.7"/></g></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 6.6c3.8 3.6 7.4 7.2 11.1 10.9"/><path d="M17.6 6.4c-3.7 3.8-7.3 7.4-11 11.1"/></g></symbol>
+    <symbol id="i-tilt" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-16 12 12)"><path d="M9.1 4.4h5.9c.8 0 1.5.7 1.5 1.5v12.2c0 .8-.7 1.5-1.5 1.5H9.1c-.8 0-1.5-.7-1.5-1.5V5.9c0-.8.7-1.5 1.5-1.5z"/><path d="M11.1 17h2"/></g><path d="M3.7 9.2c-.7 1.9-.7 3.8.1 5.7"/><path d="M20.3 9.1c.7 1.9.7 3.9-.1 5.8"/></g></symbol>
+    <symbol id="i-drag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 13.2V6.3c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v4.9l3.5.7c1 .2 1.7 1.2 1.5 2.2l-.6 4c-.2 1.2-1.2 2.1-2.4 2.1h-3.2c-.8 0-1.6-.4-2-1.1l-2.6-3.8c-.5-.8-.3-1.8.4-2.2.7-.5 1.6-.3 2.2.3z"/><path d="M5.6 4.7 4 6.3l1.6 1.6"/><path d="M18 4.7l1.6 1.6L18 7.9"/></g></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.7c.8-.8 2-.8 2.8 0l1 1c.8.8.8 2.1 0 2.8L9.3 18.5l-4.7 1.1 1-4.7z"/><path d="M13.7 6.5c1.3 1.2 2.5 2.5 3.8 3.8"/></g></symbol>
+    <symbol id="h-pen" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M30 6.5c1.2-1.2 3.1-1.2 4.3 0l1.6 1.6c1.2 1.2 1.2 3.1 0 4.3L20.4 27.9l-6.3 1.6 1.6-6.3z"/><path d="M6 40c4.5-3.2 9.3 1.6 14-.6 4.6-2.2 8.6-3.4 13.8-1 2.3 1 5 1.1 8.2-.4"/></g></symbol>
+    <symbol id="h-walls" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13.5c7-1.6 13.6 1.3 20.4-.2 5.8-1.3 11.4-.6 17.6.8"/><path d="M5 34.6c6.8 1.2 12.4-1.4 19.6.1 6.4 1.4 12-.4 18.4-1.1"/><path d="M19 24c0-2.3 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.7-4-4z"/><path d="M8.5 24h4.5"/></g></symbol>
+    <symbol id="h-hole" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M30.5 17.3c4.1.2 7.2 3.4 7 7.4-.2 4-3.6 7.1-7.6 6.9-4-.2-7.1-3.6-6.9-7.6.2-3.9 3.5-6.9 7.5-6.7z" fill="currentColor"/><path d="M10 24.4c0-2 1.6-3.6 3.6-3.6s3.6 1.6 3.6 3.6-1.6 3.6-3.6 3.6-3.6-1.6-3.6-3.6z"/><path d="M4 24.4h2.6"/></g></symbol>
+  </defs>
+</svg>
+
+<!-- Hidden photo inputs: the phone's own camera app, or the photo library. No getUserMedia. -->
+<input type="file" id="in-snap" accept="image/*" capture="environment" hidden>
+<input type="file" id="in-pick" accept="image/*" hidden>
+
+<main id="app">
+
+  <!-- landing -->
+  <section class="screen" id="s-landing" data-screen="landing" aria-label="Draw a Level">
+    <div class="col">
+      <h1 class="hero">Draw a level.</h1>
+      <p class="sub">Draw a maze on paper. Snap it. Tilt to play, then dare a friend.</p>
+      <div class="board-wrap tilted" id="landing-wrap"><canvas id="landing-board" role="img" aria-label="A hand-drawn maze with a steel ball rolling through it"></canvas></div>
+      <div class="actions">
+        <button class="btn btn-block" id="btn-snap" type="button"><svg class="ico"><use href="#i-camera"/></svg>Snap my maze</button>
+        <button class="btn btn-ghost btn-block" id="btn-pick" type="button"><svg class="ico"><use href="#i-photo"/></svg>Pick a photo</button>
+        <button class="btn-text center" id="btn-sample" type="button">Play a sample level</button>
+      </div>
+      <div class="howto card" aria-label="How to draw">
+        <h2 class="small-h">How to draw</h2>
+        <ol class="howto-row">
+          <li><svg class="pict"><use href="#h-pen"/></svg><span class="hand-cap">Pen on paper</span></li>
+          <li><svg class="pict"><use href="#h-walls"/></svg><span class="hand-cap">Lines are walls</span></li>
+          <li><svg class="pict"><use href="#h-hole"/></svg><span class="hand-cap">A filled dot is a hole</span></li>
+        </ol>
+      </div>
+      <p class="trust">Free. No account. Your photo stays on your phone.</p>
+    </div>
+    <div data-footer></div>
+  </section>
+
+  <!-- lifting -->
+  <section class="screen screen-fixed" id="s-lifting" data-screen="lifting" aria-label="Your level">
+    <div class="stage" id="lift-stage">
+      <canvas id="lift-board" class="lift-board"></canvas>
+      <canvas id="lift-photo" class="lift-photo"></canvas>
+    </div>
+    <div class="under">
+      <h1 class="h1" id="lift-title" aria-live="polite">Lifting your lines.</h1>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="lift-retake" type="button"><svg class="ico"><use href="#i-retake"/></svg>Retake</button>
+        <button class="btn" id="lift-ok" type="button" disabled>Looks good</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- place -->
+  <section class="screen screen-fixed" id="s-place" data-screen="place" aria-label="Place the start and finish">
+    <p class="note" id="place-note" aria-live="polite">Tap where the ball starts.</p>
+    <div class="stage" id="place-stage"><canvas id="place-board"></canvas></div>
+    <div class="bottom-bar">
+      <button class="icon-btn outline" id="place-back" type="button" aria-label="Back"><svg class="ico"><use href="#i-back"/></svg></button>
+      <button class="btn grow" id="place-ready" type="button" disabled>Ready</button>
+    </div>
+  </section>
+
+  <!-- play -->
+  <section class="screen screen-fixed screen-play" id="s-play" data-screen="play" aria-label="Play">
+    <header class="topbar">
+      <button class="icon-btn" id="play-restart" type="button" aria-label="Restart"><svg class="ico"><use href="#i-restart"/></svg></button>
+      <div class="timer" id="play-timer" aria-live="off">0:00.0</div>
+      <button class="icon-btn" id="play-close" type="button" aria-label="Close"><svg class="ico"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="stage" id="play-stage">
+      <canvas id="play-canvas"></canvas>
+      <div class="scrim" id="play-scrim" hidden></div>
+      <div class="countdown hand" id="countdown" aria-live="assertive"></div>
+      <div class="gulp hand" id="gulp" aria-hidden="true">Gulp.</div>
+      <div class="tap-card" id="tap-card" hidden>
+        <svg class="ico big"><use href="#i-tilt"/></svg>
+        <h1 class="h1">Tap to play.</h1>
+        <p>Then tilt your phone to roll the ball.</p>
+        <button class="btn btn-block" id="tap-go" type="button"><svg class="ico"><use href="#i-play"/></svg>Play</button>
+      </div>
+    </div>
+    <div class="hint-row" id="play-hint" hidden><svg class="ico"><use href="#i-drag"/></svg><span class="hand">Drag to tilt.</span></div>
+  </section>
+
+  <!-- maker result -->
+  <section class="screen" id="s-result" data-screen="result" aria-label="Your time">
+    <div class="col">
+      <div class="board-wrap center-wrap"><canvas id="result-board" role="img" aria-label="Your level with the path you rolled"></canvas></div>
+      <div class="time-row">
+        <div class="time" id="result-time">0:00.0</div>
+        <span class="hand nice">Nice.</span>
+      </div>
+      <p class="best-line" id="result-best" hidden></p>
+      <label class="name-label" for="result-name">So they know who to beat.</label>
+      <input class="name-input" id="result-name" type="text" maxlength="16" placeholder="Your name" autocomplete="given-name" autocapitalize="words" enterkeyhint="done">
+      <button class="btn btn-block" id="result-dare" type="button"><svg class="ico"><use href="#i-share"/></svg>Dare a friend</button>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="result-again" type="button"><svg class="ico"><use href="#i-restart"/></svg>Play again</button>
+        <button class="btn btn-ghost" id="result-story" type="button"><svg class="ico"><use href="#i-save"/></svg><span>Save story</span></button>
+      </div>
+      <p class="status" id="result-status" role="status" aria-live="polite"></p>
+    </div>
+    <div data-footer></div>
+  </section>
+
+  <!-- friend intro -->
+  <section class="screen" id="s-intro" data-screen="intro" aria-label="A level for you">
+    <div class="col">
+      <h1 class="h1 signed" id="intro-title"></h1>
+      <div class="board-wrap center-wrap"><canvas id="intro-board" role="img" aria-label="The level your friend drew"></canvas></div>
+      <div class="beat-tag" id="intro-tag"><span class="beat-label">Time to beat</span><span class="beat-time" id="intro-time">0:00.0</span></div>
+      <button class="btn btn-block" id="intro-play" type="button"><svg class="ico"><use href="#i-play"/></svg>Play</button>
+    </div>
+    <div data-footer></div>
+  </section>
+
+  <!-- friend result -->
+  <section class="screen" id="s-friend" data-screen="friend-result" aria-label="Your result">
+    <div class="col">
+      <h1 class="h1 signed" id="friend-line"></h1>
+      <div class="compare" id="friend-compare">
+        <div><span class="cmp-label">You</span><span class="cmp-time" id="cmp-you">0:00.0</span></div>
+        <div><span class="cmp-label" id="cmp-who-label">Rishi</span><span class="cmp-time" id="cmp-them">0:00.0</span></div>
+      </div>
+      <div class="board-wrap center-wrap"><canvas id="friend-board" role="img" aria-label="The level with the path you rolled"></canvas></div>
+      <div id="friend-name-wrap" hidden>
+        <label class="name-label" for="friend-name">Your name, so they see who played.</label>
+        <input class="name-input" id="friend-name" type="text" maxlength="16" placeholder="Your name" autocomplete="given-name" autocapitalize="words" enterkeyhint="done">
+      </div>
+      <button class="btn btn-block" id="friend-send" type="button"><svg class="ico"><use href="#i-share"/></svg>Send it back</button>
+      <button class="btn btn-ghost btn-block" id="friend-own" type="button"><svg class="ico"><use href="#i-pen"/></svg>Draw your own level</button>
+      <div class="link-row">
+        <button class="btn-text" id="friend-again" type="button"><svg class="ico"><use href="#i-restart"/></svg>Try again</button>
+        <button class="btn-text" id="friend-story" type="button"><svg class="ico"><use href="#i-save"/></svg><span>Save story</span></button>
+      </div>
+      <p class="status" id="friend-status" role="status" aria-live="polite"></p>
+    </div>
+    <div data-footer></div>
+  </section>
+
+  <!-- error -->
+  <section class="screen" id="s-error" data-screen="error" aria-label="Something went wrong">
+    <div class="col err-col">
+      <svg class="ico err-ico" id="err-ico"><use href="#i-pen"/></svg>
+      <h1 class="h1" id="err-title"></h1>
+      <p class="err-detail" id="err-detail"></p>
+      <button class="btn btn-block" id="err-btn" type="button"></button>
+    </div>
+    <div data-footer="compact"></div>
+  </section>
+
+  <noscript><div class="col"><h1 class="h1">Draw a level.</h1><p>This site needs JavaScript to turn your drawing into a game.</p></div></noscript>
+</main>
+
+<script src="src/engine/util.js"></script>
+<script src="src/engine/palette.js"></script>
+<script src="src/engine/decode.js"></script>
+<script src="src/engine/lift.js"></script>
+<script src="src/engine/vectorize.js"></script>
+<script src="src/engine/level.js"></script>
+<script src="src/engine/codec.js"></script>
+<script src="src/engine/sample.js"></script>
+<script src="src/engine/physics.js"></script>
+<script src="src/engine/input.js"></script>
+<script src="src/engine/board.js"></script>
+<script src="src/engine/game.js"></script>
+<script src="src/engine/story.js"></script>
+<script src="src/engine/export.js"></script>
+<script src="src/engine/share.js"></script>
+<script src="src/app.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

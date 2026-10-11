@@ -1,0 +1,16 @@
+tests/
+notes/
+shots/
+design/
+.claude/
+node_modules/
+PLAN.md
+HANDOFF.md
+DESIGN.md
+VERIFY.md
+CLAUDE.md
+*.md.bak
+.gitignore
+.gitattributes
+docs/
+*.pen

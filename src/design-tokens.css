@@ -1,0 +1,104 @@
+/* Draw a Level: design-tokens.css (art-director). Variables and @font-face only.
+   Concept "The Desk Toy": your page, set into a small wooden tilt-maze toy under glass.
+   Family base (../shared-kit/tokens.css) unchanged: warm paper, ink-blue accent, serif headings, Caveat.
+   This site adds: wood, brass (the one special colour), steel, and the hole's near-black.
+   Fonts: only Caveat is self-hosted; serif and sans are system stacks (nothing to download). */
+
+@font-face {
+  font-family: "Caveat";
+  src: url("../fonts/caveat-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  /* ---- colour: paper ---- */
+  --dl-page: #f6f2ea;         /* page background (family --bg) */
+  --dl-card: #fffdf8;         /* cards, fields (family --card) */
+  --dl-paper: #fbf7ee;        /* the paper inset inside the toy */
+  --dl-line: #e6dfd1;         /* hairlines, card borders */
+  --dl-line-2: #d6c9b1;       /* field baselines, dividers that must be seen */
+
+  /* ---- colour: ink (text + UI accent) ---- */
+  --dl-text: #1c2433;         /* 14.6:1 on page */
+  --dl-text-2: #3a4252;       /* 9.4:1 on page */
+  --dl-muted: #6c6a64;        /* 4.8:1 on page; small print only */
+  --dl-accent: #1f3a5f;       /* ink-blue: primary buttons, links, start marker. 10.6:1 on page */
+  --dl-accent-2: #2a4a78;     /* pressed */
+  --dl-accent-ink: #ffffff;   /* text on accent: 11.9:1 */
+  --dl-accent-soft: #e7edf6;  /* pressed ghost, focus ring */
+
+  /* ---- colour: the toy ---- */
+  --dl-wood: #c99a62;
+  --dl-wood-light: #dcb27c;
+  --dl-wood-dark: #a87545;
+  --dl-wood-grain: #7d5330;
+  --dl-brass: #c4913f;        /* the special colour: goal ring, path, time-to-beat mark */
+  --dl-brass-light: #efd59a;
+  --dl-brass-dark: #7f5a1e;
+  --dl-brass-text: #8a5a1f;   /* brass you can read: 5.3:1 on page */
+  --dl-brass-soft: #f3e6c8;   /* the time-to-beat tag background */
+  --dl-path: #a8641e;         /* the run's path line: 4.4:1 on paper */
+  --dl-steel: #8d96a1;
+  --dl-steel-dark: #2f353d;
+  --dl-hole: #100b08;
+
+  /* ---- colour: states ---- */
+  --dl-bad: #a33a2b;          /* 6.2:1 on page */
+  --dl-bad-soft: #fbe7e3;
+  --dl-scrim: rgba(38, 27, 15, 0.46);   /* warm dim over the board for the Tap to play card. Never blurred. */
+
+  /* ---- type: Caveat self-hosted; serif + sans are system stacks ---- */
+  --dl-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --dl-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --dl-hand: "Caveat", "Bradley Hand", "Segoe Print", cursive;
+
+  --dl-fs-hero: clamp(2.6rem, 12vw, 3.2rem);   /* "Draw a level." */
+  --dl-fs-h1: clamp(1.7rem, 7.2vw, 2.05rem);   /* one big line per screen */
+  --dl-fs-time: clamp(3.6rem, 19vw, 4.75rem);  /* the result time */
+  --dl-fs-timer: 1.3rem;                       /* the play timer, sans tabular */
+  --dl-fs-body: 1rem;
+  --dl-fs-small: 0.875rem;
+  --dl-fs-hand: 1.55rem;                       /* Caveat notes */
+  --dl-fs-hand-lg: 2.1rem;                     /* "Nice.", "Gulp.", countdown uses its own size */
+  --dl-lh-tight: 1.08;
+  --dl-lh: 1.5;
+
+  /* ---- space (4-pt) ---- */
+  --dl-s1: 4px; --dl-s2: 8px; --dl-s3: 12px; --dl-s4: 16px;
+  --dl-s5: 20px; --dl-s6: 24px; --dl-s7: 32px; --dl-s8: 48px;
+  --dl-gutter: 20px;
+  --dl-gutter-play: 8px;      /* play screen: the board almost touches the edges */
+
+  /* ---- shape ---- */
+  --dl-r-sm: 12px;
+  --dl-r: 20px;               /* cards (family) */
+  --dl-r-pill: 999px;         /* the two kinds of button only */
+  --dl-btn-h: 56px;
+  --dl-tap: 44px;
+  --dl-topbar: 52px;
+
+  /* ---- depth: only cards, the board and the floating card cast shadows ---- */
+  --dl-shadow-card: 0 1px 2px rgba(60, 45, 15, 0.06), 0 8px 28px rgba(60, 45, 15, 0.08);
+  --dl-shadow-board: 0 2px 3px rgba(60, 38, 14, 0.16), 0 12px 26px rgba(60, 38, 14, 0.20), 0 30px 60px rgba(60, 38, 14, 0.10);
+  --dl-shadow-float: 0 2px 4px rgba(40, 28, 12, 0.10), 0 18px 40px rgba(40, 28, 12, 0.22);
+
+  /* ---- motion ---- */
+  --dl-ease: cubic-bezier(.2, .75, .25, 1);      /* family */
+  --dl-ease-out: cubic-bezier(.16, 1, .3, 1);
+  --dl-ease-gravity: cubic-bezier(.5, 0, .9, .4);
+  --dl-ease-settle: cubic-bezier(.3, 1.25, .5, 1); /* the only overshoot: ball drop + finish settle */
+  --dl-t-fast: 140ms;
+  --dl-t: 240ms;
+  --dl-t-slow: 520ms;
+  --dl-t-lift: 1400ms;
+  --dl-t-drop: 380ms;
+  --dl-t-hole: 300ms;
+
+  /* ---- phones ---- */
+  --dl-safe-t: env(safe-area-inset-top, 0px);
+  --dl-safe-b: env(safe-area-inset-bottom, 0px);
+}

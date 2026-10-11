@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draw a Level: design board (never deployed)</title>
+<link rel="stylesheet" href="../src/design-tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #e9e3d6; }
+  body { width: 390px; overflow-x: hidden; }
+  body { font: 400 var(--dl-fs-body)/var(--dl-lh) var(--dl-sans); color: var(--dl-text); -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  p { margin: 0; }
+  h1, h2, h3 { margin: 0; font-family: var(--dl-serif); font-weight: 600; line-height: var(--dl-lh-tight); letter-spacing: -0.01em; }
+
+  /* board chrome */
+  .sec { background: var(--dl-page); padding: 28px 20px 32px; border-bottom: 1px solid var(--dl-line-2); }
+  .sec-label { font: 600 .78rem/1 var(--dl-sans); color: var(--dl-muted); letter-spacing: .02em; margin-bottom: 14px; }
+  .mock-label { font: 600 .78rem/1 var(--dl-sans); color: #6b6253; padding: 18px 20px 10px; letter-spacing: .02em; }
+  .phone { position: relative; width: 390px; height: 844px; overflow: hidden; background: var(--dl-page); }
+  .phone.tall { height: auto; }
+  .fold { position: absolute; left: 0; right: 0; top: 844px; border-top: 1px dashed #b9ab90; }
+  .fold::after { content: "fold at 844"; position: absolute; right: 8px; top: 2px; font: 500 10px var(--dl-sans); color: #9d8f74; }
+
+  /* swatches */
+  .sw { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .sw .chip { border-radius: 12px; height: 54px; border: 1px solid rgba(0,0,0,.06); }
+  .sw span { display: block; font: 500 10.5px/1.3 var(--dl-sans); color: var(--dl-text-2); margin-top: 4px; }
+  .ratio { display: flex; height: 18px; border-radius: 9px; overflow: hidden; margin-top: 14px; border: 1px solid var(--dl-line); }
+
+  /* site components */
+  .btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: var(--dl-btn-h); padding: 0 24px; border: 0; border-radius: var(--dl-r-pill); background: var(--dl-accent); color: var(--dl-accent-ink); font: 600 1.05rem/1 var(--dl-sans); }
+  .btn svg { width: 22px; height: 22px; flex: none; }
+  .btn.pressed { background: var(--dl-accent-2); transform: scale(.98); }
+  .btn.ghost { background: transparent; color: var(--dl-accent); box-shadow: inset 0 0 0 1.5px var(--dl-accent); }
+  .btn.ghost.pressed { background: var(--dl-accent-soft); }
+  .btn:disabled, .btn.disabled { background: #e6dfd0; color: #8a8478; }
+  .row { display: flex; gap: 12px; }
+  .row > * { flex: 1; }
+  .link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; color: var(--dl-accent); font: 600 1rem/1 var(--dl-sans); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+  .link svg { width: 20px; height: 20px; }
+  .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: transparent; color: var(--dl-accent); border-radius: 12px; padding: 0; }
+  .icon-btn svg { width: 24px; height: 24px; }
+  .field-wrap label { display: block; font: 400 var(--dl-fs-small)/1.3 var(--dl-sans); color: var(--dl-muted); margin: 0 0 6px 2px; }
+  .field { display: flex; align-items: center; height: 52px; padding: 0 16px; background: var(--dl-card); border: 1px solid var(--dl-line-2); border-radius: var(--dl-r-sm); font: 600 1.6rem/1 var(--dl-hand); color: var(--dl-text); }
+  .field.empty { font: 400 1rem/1 var(--dl-sans); color: #8d887d; }
+  .field.focus { border-color: var(--dl-accent); box-shadow: 0 0 0 3px var(--dl-accent-soft); }
+  .field .caret { width: 1.5px; height: 26px; background: var(--dl-accent); margin-left: 2px; }
+  .hand { font-family: var(--dl-hand); font-weight: 600; }
+  .t { font-variant-numeric: tabular-nums lining-nums; }
+  .card { background: var(--dl-card); border: 1px solid var(--dl-line); border-radius: var(--dl-r); box-shadow: var(--dl-shadow-card); }
+
+  /* specimens */
+  .spec > * + * { margin-top: 14px; }
+  .spec small { display: block; font: 500 10.5px/1.3 var(--dl-sans); color: var(--dl-muted); margin-bottom: 2px; }
+  .icons { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px 6px; color: var(--dl-accent); }
+  .icons div { display: grid; justify-items: center; gap: 4px; font: 500 9.5px var(--dl-sans); color: var(--dl-muted); }
+  .icons svg { width: 28px; height: 28px; color: var(--dl-accent); }
+
+  /* screens */
+  .scr { padding: 20px var(--dl-gutter) 0; }
+  .hero { font-size: var(--dl-fs-hero); }
+  .sub { color: var(--dl-text-2); margin-top: 8px; max-width: 30ch; }
+  .board-slot { display: flex; justify-content: center; }
+  .board-slot canvas { display: block; }
+  .tilted { transform: rotate(-1.5deg); }
+  .topbar { height: var(--dl-topbar); display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
+  .timer { font: 600 var(--dl-fs-timer)/1 var(--dl-sans); font-variant-numeric: tabular-nums; color: var(--dl-text); letter-spacing: .01em; }
+  .hint { display: flex; align-items: center; justify-content: center; gap: 8px; height: 36px; color: var(--dl-accent); opacity: .62; }
+  .hint svg { width: 22px; height: 22px; }
+  .hint span { font: 600 1.45rem/1 var(--dl-hand); }
+  .instr { font: 600 var(--dl-fs-hand-lg)/1.1 var(--dl-hand); color: var(--dl-accent); padding: 18px 20px 10px; }
+  .bottombar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; align-items: center; padding: 12px 16px 22px; }
+  .howto { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 18px 10px 14px; text-align: center; }
+  .howto svg { width: 48px; height: 48px; color: var(--dl-accent); }
+  .howto span { display: block; font: 600 1.32rem/1.05 var(--dl-hand); color: var(--dl-text-2); margin-top: 4px; }
+  .trust { text-align: center; font-size: var(--dl-fs-small); color: var(--dl-muted); padding: 18px 0 6px; }
+  .footer { padding: 18px 16px 28px; display: grid; gap: 8px; }
+  .more { display: flex; align-items: center; gap: 12px; font-size: .9rem; font-weight: 600; font-variant-caps: all-small-caps; letter-spacing: .08em; color: var(--dl-muted); }
+  .more::before, .more::after { content: ""; flex: 1; border-top: 4px double #d3c9b2; }
+  .sib { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 14px; background: var(--dl-card); border: 1px solid var(--dl-line); border-radius: 16px; }
+  .sib i { width: 38px; height: 38px; border-radius: 12px; background: var(--dl-accent-soft); color: var(--dl-accent); display: grid; place-items: center; font: italic 600 1.35rem/1 var(--dl-serif); }
+  .sib b { font: 600 1.02rem/1.2 var(--dl-serif); display: block; }
+  .sib em { color: var(--dl-muted); font-size: .85rem; }
+  .time-big { font: 600 var(--dl-fs-time)/1 var(--dl-serif); font-variant-numeric: tabular-nums lining-nums; letter-spacing: -.02em; }
+  .nice { font: 600 2.3rem/1 var(--dl-hand); color: var(--dl-accent); transform: rotate(-4deg); display: inline-block; margin-left: 10px; }
+  .tag { display: inline-flex; align-items: baseline; gap: 10px; background: var(--dl-brass-soft); border-radius: 12px; padding: 10px 14px; }
+  .tag small { font: 600 .82rem/1 var(--dl-sans); color: var(--dl-brass-text); }
+  .tag b { font: 600 1.6rem/1 var(--dl-serif); font-variant-numeric: tabular-nums lining-nums; }
+  .who { margin-right: .12em; font-family: var(--dl-hand); font-weight: 600; color: var(--dl-accent); font-size: 1.22em; letter-spacing: 0; }
+  .scrim { position: absolute; background: var(--dl-scrim); }
+  .tap-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 290px; padding: 24px 22px 20px; background: var(--dl-card); border-radius: var(--dl-r); box-shadow: var(--dl-shadow-float); }
+  .tap-card svg.big { width: 40px; height: 40px; color: var(--dl-accent); }
+  .gulp { position: absolute; font: 600 2rem/1 var(--dl-hand); color: var(--dl-text); transform: rotate(-6deg); }
+</style>
+</head>
+<body>
+
+<!-- ======================= THE ICON SET (copy these paths) ======================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs id="icons">
+    <g id="i-camera" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 8.3c0-1 .8-1.8 1.7-1.8h2.3l1.3-1.9c.2-.3.5-.4.8-.4h4.5c.3 0 .6.1.8.4l1.3 1.9h2.4c.9 0 1.7.8 1.7 1.8v9.5c0 .9-.8 1.7-1.7 1.7H5.3c-.9 0-1.7-.8-1.7-1.7z"/><path d="M12.1 9.5c2 0 3.5 1.5 3.4 3.5 0 1.9-1.6 3.4-3.5 3.4s-3.4-1.6-3.4-3.5c.1-1.9 1.6-3.4 3.5-3.4z"/></g>
+    <g id="i-photo" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.6c0-.9.7-1.6 1.6-1.6h12.9c.8 0 1.5.7 1.5 1.6v12.8c0 .9-.7 1.6-1.6 1.6H5.6c-.9 0-1.6-.7-1.6-1.6z"/><path d="M4.4 16.6c1.5-1.6 3-3.3 4.6-4.8 1.2 1.1 2.4 2.3 3.6 3.4l2.4-2.2c1.6 1.4 3.2 2.9 4.7 4.4"/><path d="M15.4 7.4c.8 0 1.4.6 1.4 1.4s-.7 1.4-1.4 1.4-1.4-.6-1.4-1.4.6-1.4 1.4-1.4z"/></g>
+    <g id="i-restart" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 12.6c.2 3.7 3.2 6.6 6.9 6.5 3.8-.1 6.8-3.2 6.7-7-.1-3.7-3.2-6.7-6.9-6.6-2 0-3.7.9-5 2.3"/><path d="M7.4 3.9 7 7.8l3.8.4"/></g>
+    <g id="i-play" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 5.7c0-.8.9-1.3 1.6-.8l8.3 5.4c.7.4.7 1.4 0 1.8l-8.4 5.3c-.7.4-1.6 0-1.6-.9z"/></g>
+    <g id="i-share" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 9.6H7.1c-.9 0-1.6.7-1.6 1.6v7.2c0 .9.7 1.6 1.6 1.6h9.9c.9 0 1.6-.7 1.6-1.6v-7.2c0-.9-.7-1.6-1.6-1.6h-1.6"/><path d="M12.1 3.9c-.1 3.5 0 6.9-.1 10.4"/><path d="M8.9 6.9c1-1.1 2.1-2.1 3.2-3.2 1 1.1 2.1 2.2 3.1 3.2"/></g>
+    <g id="i-save" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c.1 3.4 0 6.8 0 10.3"/><path d="M8.5 10.9c1.2 1.2 2.3 2.4 3.5 3.5l3.6-3.5"/><path d="M4.8 15.4v2.7c0 .9.7 1.6 1.6 1.6h11.2c.9 0 1.6-.7 1.6-1.6v-2.7"/></g>
+    <g id="i-retake" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18.9 12.6c-.3 3.6-3.4 6.4-7 6.4-2.1 0-4-1-5.3-2.5"/><path d="M5.1 11.4c.3-3.6 3.3-6.4 7-6.4 2.1 0 4 .9 5.3 2.4"/><path d="M17.7 3.9c0 1.2-.1 2.3-.2 3.5l-3.5-.1"/><path d="M6.3 20.1l.2-3.5 3.5.1"/><path d="M12 10.5c.9 0 1.5.6 1.5 1.5s-.7 1.5-1.5 1.5-1.5-.7-1.5-1.5.6-1.5 1.5-1.5z"/></g>
+    <g id="i-back" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 5.3c-2.2 2.3-4.4 4.5-6.7 6.7 2.2 2.3 4.5 4.4 6.7 6.7"/></g>
+    <g id="i-close" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 6.6c3.8 3.6 7.4 7.2 11.1 10.9"/><path d="M17.6 6.4c-3.7 3.8-7.3 7.4-11 11.1"/></g>
+    <g id="i-tilt" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-16 12 12)"><path d="M9.1 4.4h5.9c.8 0 1.5.7 1.5 1.5v12.2c0 .8-.7 1.5-1.5 1.5H9.1c-.8 0-1.5-.7-1.5-1.5V5.9c0-.8.7-1.5 1.5-1.5z"/><path d="M11.1 17h2"/></g><path d="M3.7 9.2c-.7 1.9-.7 3.8.1 5.7"/><path d="M20.3 9.1c.7 1.9.7 3.9-.1 5.8"/></g>
+    <g id="i-drag" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 13.2V6.3c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v4.9l3.5.7c1 .2 1.7 1.2 1.5 2.2l-.6 4c-.2 1.2-1.2 2.1-2.4 2.1h-3.2c-.8 0-1.6-.4-2-1.1l-2.6-3.8c-.5-.8-.3-1.8.4-2.2.7-.5 1.6-.3 2.2.3z"/><path d="M5.6 4.7 4 6.3l1.6 1.6"/><path d="M18 4.7l1.6 1.6L18 7.9"/></g>
+    <g id="i-pen" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.7c.8-.8 2-.8 2.8 0l1 1c.8.8.8 2.1 0 2.8L9.3 18.5l-4.7 1.1 1-4.7z"/><path d="M13.7 6.5c1.3 1.2 2.5 2.5 3.8 3.8"/></g>
+    <!-- how to draw (48 grid, stroke 2.6 ≈ 1.75 at 32 px) -->
+    <g id="h-pen" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M30 6.5c1.2-1.2 3.1-1.2 4.3 0l1.6 1.6c1.2 1.2 1.2 3.1 0 4.3L20.4 27.9l-6.3 1.6 1.6-6.3z"/><path d="M6 40c4.5-3.2 9.3 1.6 14-.6 4.6-2.2 8.6-3.4 13.8-1 2.3 1 5 1.1 8.2-.4"/></g>
+    <g id="h-walls" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13.5c7-1.6 13.6 1.3 20.4-.2 5.8-1.3 11.4-.6 17.6.8"/><path d="M5 34.6c6.8 1.2 12.4-1.4 19.6.1 6.4 1.4 12-.4 18.4-1.1"/><path d="M19 24c0-2.3 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.7-4-4z"/><path d="M8.5 24h4.5"/></g>
+    <g id="h-hole" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M30.5 17.3c4.1.2 7.2 3.4 7 7.4-.2 4-3.6 7.1-7.6 6.9-4-.2-7.1-3.6-6.9-7.6.2-3.9 3.5-6.9 7.5-6.7z" fill="currentColor"/><path d="M10 24.4c0-2 1.6-3.6 3.6-3.6s3.6 1.6 3.6 3.6-1.6 3.6-3.6 3.6-3.6-1.6-3.6-3.6z"/><path d="M4 24.4h2.6"/></g>
+  </defs>
+</svg>
+
+<!-- ======================= 1. SYSTEM ======================= -->
+<div data-part="1">
+  <section class="sec">
+    <div class="sec-label">Draw a Level · design board · concept</div>
+    <h1 style="font-size:2.3rem">The Desk Toy.</h1>
+    <p class="sub" style="max-width:34ch">Your notebook page, set into a small, well-made wooden tilt-maze toy, under glass.</p>
+    <p style="margin-top:14px;font:600 1.4rem/1.15 var(--dl-hand);color:var(--dl-accent);transform:rotate(-1.5deg);transform-origin:left">would this be on a real wooden toy, or in a notebook?</p>
+  </section>
+
+  <section class="sec">
+    <div class="sec-label">Palette</div>
+    <div class="sw">
+      <div><div class="chip" style="background:#f6f2ea"></div><span>page #f6f2ea</span></div>
+      <div><div class="chip" style="background:#fbf7ee"></div><span>paper #fbf7ee</span></div>
+      <div><div class="chip" style="background:#fffdf8"></div><span>card #fffdf8</span></div>
+      <div><div class="chip" style="background:#1c2433"></div><span>text #1c2433</span></div>
+      <div><div class="chip" style="background:#1f3a5f"></div><span>accent ink-blue #1f3a5f</span></div>
+      <div><div class="chip" style="background:#26357a"></div><span>a person's biro (level.ink)</span></div>
+      <div><div class="chip" style="background:linear-gradient(90deg,#dcb27c,#c99a62,#a87545)"></div><span>wood #c99a62</span></div>
+      <div><div class="chip" style="background:linear-gradient(135deg,#efd59a,#c4913f 50%,#7f5a1e)"></div><span>brass (special) #c4913f</span></div>
+      <div><div class="chip" style="background:#a8641e"></div><span>path #a8641e</span></div>
+      <div><div class="chip" style="background:radial-gradient(circle at 35% 30%,#c3cad2,#7f8893 55%,#2f353d)"></div><span>steel #7f8893</span></div>
+      <div><div class="chip" style="background:#100b08"></div><span>hole #100b08</span></div>
+      <div><div class="chip" style="background:#a33a2b"></div><span>bad #a33a2b</span></div>
+    </div>
+    <div class="ratio" title="usage ratios">
+      <div style="flex:55;background:#f6f2ea"></div><div style="flex:25;background:#fbf7ee;border-left:1px solid #e6dfd1"></div><div style="flex:8;background:#c99a62"></div><div style="flex:5;background:#fffdf8"></div><div style="flex:4;background:#1f3a5f"></div><div style="flex:2;background:#1c2433"></div><div style="flex:1;background:#c4913f"></div>
+    </div>
+    <p style="font-size:.75rem;color:var(--dl-muted);margin-top:6px">page 55 · paper 25 · wood 8 · card 5 · ink-blue 4 · text 2 · brass 1</p>
+  </section>
+
+  <section class="sec spec">
+    <div class="sec-label">Type · serif stack · system sans · Caveat (3 faces, nothing downloaded but Caveat)</div>
+    <div><small>Hero · serif 600 · clamp 2.6–3.2rem</small><h1 class="hero">Draw a level.</h1></div>
+    <div><small>H1 · serif 600</small><h2 style="font-size:var(--dl-fs-h1)">Here's your level.</h2></div>
+    <div><small>Result time · serif 600 tabular lining</small><div class="time-big">0:14.2</div></div>
+    <div><small>Body · sans 400 · 16/24</small><p>Draw a maze on paper. Snap it. Tilt to play, then dare a friend.</p></div>
+    <div><small>Timer · sans 600 tabular</small><span class="timer">0:08.4</span></div>
+    <div><small>Hand · Caveat 600 · notes, names, "Gulp."</small><span class="hand" style="font-size:2.1rem;color:var(--dl-accent)">Rishi drew you a level.</span></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-label">Icons · 24 grid · 1.75 stroke · round · slightly hand-drawn</div>
+    <div class="icons">
+      <div><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg>camera</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-photo"/></svg>photo</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-restart"/></svg>restart</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>play</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-share"/></svg>share</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-save"/></svg>save</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-retake"/></svg>retake</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-back"/></svg>back</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-close"/></svg>close</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-tilt"/></svg>tilt</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-drag"/></svg>drag</div>
+      <div><svg viewBox="0 0 24 24"><use href="#i-pen"/></svg>pen</div>
+    </div>
+  </section>
+
+  <section class="sec" style="display:grid;gap:12px">
+    <div class="sec-label">Buttons and fields · states</div>
+    <button class="btn"><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg>Snap my maze</button>
+    <button class="btn pressed"><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg>Snap my maze · pressed</button>
+    <button class="btn ghost"><svg viewBox="0 0 24 24"><use href="#i-photo"/></svg>Pick a photo</button>
+    <button class="btn disabled">Ready · disabled</button>
+    <div class="row"><a class="link"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>Play a sample level</a><div style="display:flex;justify-content:flex-end;gap:4px"><button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-restart"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-close"/></svg></button></div></div>
+    <div class="field-wrap"><label>So they know who to beat.</label><div class="field empty">Your name</div></div>
+    <div class="field focus">Rishi<span class="caret"></span></div>
+    <div class="tag"><small>Time to beat</small><b>0:14.2</b></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-label">Materials at 2× · ball, hole, goal, start, path</div>
+    <canvas id="mat" data-w="350" data-h="170"></canvas>
+  </section>
+</div>
+
+<!-- ======================= 2. LANDING + PLACE ======================= -->
+<div data-part="2">
+  <div class="mock-label">landing · 390 × 844 (and below the fold)</div>
+  <div class="phone tall">
+    <div class="scr">
+      <h1 class="hero" style="margin-top:14px">Draw a level.</h1>
+      <p class="sub">Draw a maze on paper. Snap it. Tilt to play, then dare a friend.</p>
+      <div class="board-slot tilted" style="margin:18px 0 22px"><canvas id="b-landing" data-fit="340,470" data-mode="landing"></canvas></div>
+      <div style="display:grid;gap:12px">
+        <button class="btn"><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg>Snap my maze</button>
+        <button class="btn ghost"><svg viewBox="0 0 24 24"><use href="#i-photo"/></svg>Pick a photo</button>
+        <a class="link">Play a sample level</a>
+      </div>
+      <div class="card" style="margin-top:22px">
+        <div style="padding:16px 18px 0;font:600 1.1rem/1 var(--dl-serif)">How to draw</div>
+        <div class="howto">
+          <div><svg viewBox="0 0 48 48"><use href="#h-pen"/></svg><span>Pen on paper</span></div>
+          <div><svg viewBox="0 0 48 48"><use href="#h-walls"/></svg><span>Lines are walls</span></div>
+          <div><svg viewBox="0 0 48 48"><use href="#h-hole"/></svg><span>A filled dot is a hole</span></div>
+        </div>
+      </div>
+      <p class="trust">Free. No account. Your photo stays on your phone.</p>
+    </div>
+    <div class="footer">
+      <div class="more">More from Risheek</div>
+      <div class="sib"><i>H</i><div><b>Handwriting font</b><em>Turn your handwriting into a font.</em></div></div>
+      <div class="sib"><i>P</i><div><b>Pocket Booth</b><em>A photo booth strip with friends.</em></div></div>
+    </div>
+    <div class="fold"></div>
+  </div>
+
+  <div class="mock-label">place · start and goal placed</div>
+  <div class="phone">
+    <div class="instr">Now tap the finish.</div>
+    <div class="board-slot" style="height:680px;align-items:center"><canvas id="b-place" data-fit="374,660" data-mode="place"></canvas></div>
+    <div class="bottombar">
+      <button class="icon-btn" style="border:1.5px solid var(--dl-accent);width:56px;height:56px;border-radius:999px"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+      <button class="btn" style="flex:1">Ready</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= 3. PLAY ======================= -->
+<div data-part="3">
+  <div class="mock-label">play · mid-run, ball near a hole (touch fallback)</div>
+  <div class="phone" id="p-play">
+    <div class="topbar">
+      <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-restart"/></svg></button>
+      <span class="timer">0:08.4</span>
+      <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="board-slot" style="height:720px;align-items:center"><canvas id="b-play" data-fit="374,720" data-mode="play"></canvas></div>
+    <div class="hint" style="position:absolute;left:0;right:0;bottom:22px"><svg viewBox="0 0 24 24"><use href="#i-drag"/></svg><span>Drag to tilt.</span></div>
+  </div>
+
+  <div class="mock-label">play · iPhone, before the tap</div>
+  <div class="phone" id="p-tap">
+    <div class="topbar">
+      <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-restart"/></svg></button>
+      <span class="timer">0:00.0</span>
+      <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="board-slot" style="height:720px;align-items:center;position:relative"><canvas id="b-tap" data-fit="374,720" data-mode="tap"></canvas>
+      <div class="tap-card">
+        <svg class="big" viewBox="0 0 24 24"><use href="#i-tilt"/></svg>
+        <h2 style="font-size:1.75rem;margin-top:10px">Tap to play.</h2>
+        <p style="color:var(--dl-text-2);margin:6px 0 18px">Then tilt your phone to roll the ball.</p>
+        <button class="btn"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>Play</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= 4. RESULTS + INTRO ======================= -->
+<div data-part="4">
+  <div class="mock-label">result · maker</div>
+  <div class="phone">
+    <div class="scr" style="padding-top:18px">
+      <div class="board-slot"><canvas id="b-result" data-fit="300,410" data-mode="result"></canvas></div>
+      <div style="display:flex;align-items:flex-end;margin-top:18px"><span class="time-big">0:14.2</span><span class="nice">Nice.</span></div>
+      <div class="field-wrap" style="margin-top:16px"><label>So they know who to beat.</label><div class="field">Rishi</div></div>
+      <div style="display:grid;gap:12px;margin-top:16px">
+        <button class="btn"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg>Dare a friend</button>
+        <div class="row"><button class="btn ghost"><svg viewBox="0 0 24 24"><use href="#i-restart"/></svg>Play again</button><button class="btn ghost"><svg viewBox="0 0 24 24"><use href="#i-save"/></svg>Save story</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-label">intro · the friend opens the link</div>
+  <div class="phone">
+    <div class="scr" style="padding-top:22px">
+      <h1 style="font-size:var(--dl-fs-h1)"><span class="who">Rishi</span> drew you a level.</h1>
+      <div class="board-slot" style="margin:18px 0 18px"><canvas id="b-intro" data-fit="350,520" data-mode="intro"></canvas></div>
+      <div class="tag"><small>Time to beat</small><b>0:14.2</b></div>
+      <button class="btn" style="margin-top:16px"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>Play</button>
+    </div>
+  </div>
+
+  <div class="mock-label">result · friend won</div>
+  <div class="phone">
+    <div class="scr" style="padding-top:22px">
+      <h1 style="font-size:var(--dl-fs-h1)">You beat <span class="who">Rishi</span> by 2.1&nbsp;s.</h1>
+      <div style="display:flex;gap:16px;align-items:center;margin-top:16px">
+        <div class="board-slot"><canvas id="b-friend" data-fit="200,270" data-mode="result"></canvas></div>
+        <div style="display:grid;gap:10px">
+          <div><div style="font-size:.85rem;color:var(--dl-muted)">You</div><div class="t" style="font:600 2rem/1 var(--dl-serif);font-variant-numeric:tabular-nums lining-nums">0:12.1</div></div>
+          <div><div style="font-size:.85rem;color:var(--dl-muted)"><span class="hand" style="font-size:1.3rem;color:var(--dl-accent)">Rishi</span></div><div style="font:600 1.4rem/1 var(--dl-serif);color:var(--dl-text-2);font-variant-numeric:tabular-nums lining-nums">0:14.2</div></div>
+        </div>
+      </div>
+      <div style="display:grid;gap:12px;margin-top:22px">
+        <button class="btn"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg>Send it back</button>
+        <button class="btn ghost"><svg viewBox="0 0 24 24"><use href="#i-pen"/></svg>Draw your own level</button>
+        <div class="row"><a class="link"><svg viewBox="0 0 24 24"><use href="#i-restart"/></svg>Try again</a><a class="link"><svg viewBox="0 0 24 24"><use href="#i-save"/></svg>Save story</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= 5. STORY ======================= -->
+<div data-part="5">
+  <div class="mock-label">story image · 1080 × 1920 shown at 1/3 · maker</div>
+  <div style="display:flex;justify-content:center;padding:0 0 24px;background:#e9e3d6">
+    <canvas id="story" style="width:360px;height:640px;box-shadow:0 8px 30px rgba(60,40,15,.18)"></canvas>
+  </div>
+</div>
+
+<script src="../src/engine/palette.js"></script>
+<script src="board-render.js"></script>
+<script>
+(function () {
+  var part = new URLSearchParams(location.search).get("part");
+  if (part) document.querySelectorAll("[data-part]").forEach(function (el) { el.hidden = el.getAttribute("data-part") !== part; });
+  var DPR = Math.max(2, window.devicePixelRatio || 1);
+  var level = DLR.makeLevel({ seed: 23, cols: 6, rows: 9, ink: "#26357a", braid: 2 });
+  var path = level._path;
+
+  function canvasFor(el, w, h) {
+    el.width = Math.round(w * DPR); el.height = Math.round(h * DPR);
+    el.style.width = w + "px"; el.style.height = h + "px";
+    var ctx = el.getContext("2d"); ctx.scale(DPR, DPR); return ctx;
+  }
+  // a point part-way along the solved path
+  function along(t) {
+    var n = path.length / 2 - 1, i = Math.min(n - 1, Math.floor(t * n)), f = t * n - i;
+    return { x: path[i * 2] + (path[i * 2 + 2] - path[i * 2]) * f, y: path[i * 2 + 1] + (path[i * 2 + 3] - path[i * 2 + 1]) * f };
+  }
+  function nearHole() {
+    var h = level.holes[0];
+    // the ball rolling past the hole, about one ball-width away
+    var best = null, bd = 1e9;
+    for (var t = 0; t < 1; t += 0.002) { var p = along(t), d = Math.abs(Math.hypot(p.x - h.x, p.y - h.y) - (h.r + level.ballR * 1.25)); if (d < bd) { bd = d; best = p; } }
+    return best;
+  }
+
+  function draw() {
+    document.querySelectorAll("canvas[data-mode]").forEach(function (el) {
+      var fit = el.getAttribute("data-fit").split(",").map(Number), mode = el.getAttribute("data-mode");
+      var pad = 24;
+      var s = DLR.fitScale(level, fit[0], fit[1] - pad), sz = DLR.size(level, s);
+      var ctx = canvasFor(el, Math.ceil(sz.w) + 0, Math.ceil(sz.h) + pad);
+      var o = { x: 0, y: 2, s: s };
+      if (mode === "landing") { var p = along(0.22); o.ball = { x: p.x, y: p.y }; o.start = null; }
+      if (mode === "place") { o.start = "place"; o.ball = { x: level.start.x, y: level.start.y }; }
+      if (mode === "play") { o.start = "play"; var q = nearHole(); o.ball = { x: q.x, y: q.y }; }
+      if (mode === "tap") { o.start = "play"; o.ball = null; }
+      if (mode === "intro") { o.start = "play"; o.ball = { x: level.start.x, y: level.start.y }; }
+      if (mode === "result") { o.path = path; o.ball = { x: level.goal.x, y: level.goal.y, scale: 0.96 }; o.gleam = 0.15; }
+      DLR.drawBoard(ctx, level, o);
+      if (mode === "tap") {
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--dl-scrim");
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(0, 2, sz.w, sz.h, DL.PALETTE.frame.radiusOuter * s) : ctx.rect(0, 2, sz.w, sz.h); ctx.fill();
+        // the hole moment, drawn as a separate vignette under the card is not needed here
+      }
+    });
+    // materials strip
+    var m = document.getElementById("mat"), mc = canvasFor(m, 350, 170);
+    mc.fillStyle = DL.PALETTE.board.paper; mc.fillRect(0, 0, 350, 170);
+    var R = 26; // a 2× ball
+    DLR.drawStart(mc, 50, 60, R, 0.9, "place"); DLR.drawBall(mc, 50, 60, R);
+    DLR.drawHole(mc, 125, 60, 22);
+    DLR.drawBall(mc, 190, 60, R, { scale: 0.7, dark: 0.55 });
+    DLR.drawHole(mc, 190 + 60, 60, 22); DLR.drawBall(mc, 250, 60, R, { scale: 0.55, dark: 0.85 });
+    DLR.drawGoal(mc, 312, 60, R * DL.PALETTE.goal.rScale, 0.15);
+    mc.font = "500 10px " + DL.PALETTE.fonts.sans; mc.fillStyle = "#6c6a64"; mc.textAlign = "center";
+    [["ball + start", 50], ["hole", 125], ["falling", 190], ["fallen", 250], ["goal cup", 312]].forEach(function (l) { mc.fillText(l[0], l[1], 118); });
+    DLR.drawPath(mc, [20, 150, 80, 140, 140, 155, 200, 140, 260, 150, 330, 140], function (v) { return v; }, function (v) { return v; }, 20);
+    // story
+    var st = document.getElementById("story"); st.width = 1080; st.height = 1920;
+    DLR.drawStory(st.getContext("2d"), level, { mode: "maker", time: "0:14.2", path: path, ball: { x: level.goal.x, y: level.goal.y, scale: 0.96 } });
+  }
+  var ready = document.fonts && document.fonts.load ? document.fonts.load('600 40px "Caveat"') : Promise.resolve();
+  ready.then(draw, draw);
+})();
+</script>
+</body>
+</html>
